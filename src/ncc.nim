@@ -3,10 +3,14 @@ import strformat
 import strutils
 import sequtils
 import nre
+import results
+
 
 type TokenType {.pure.} = enum
     BinOp
     Integer
+    OpenParen
+    CloseParen
     Eof
 
 
@@ -35,26 +39,55 @@ func peek(t: Tokenizer): char =
         return '\0'
 
 
-proc getOne(t: Tokenizer): Token = 
+type TokenResult = Result[Token, int]
+
+proc getOne(t: Tokenizer): TokenResult = 
 
     # WSは飛ばす。proc eatWS(t: Tokenizer)とかに分割したほうがいいかp
     while t.cur == ' ':
         t.pos += 1
 
     if t.cur == '\0':
-        return Token(tokenType: TokenType.Eof, literal: "\0")
+        return ok(Token(tokenType: TokenType.Eof, literal: "\0"))
     
     if t.cur.isDigit:
         var literal: string
         while t.cur.isDigit:
             literal.add t.cur
             t.pos += 1
-        return Token(tokenType: TokenType.Integer, literal: literal)
+        return ok(Token(tokenType: TokenType.Integer, literal: literal))
     
     if "+-*/".contains t.cur:
-        var literal: string
-        literal.add t.cur
+        let literal = $t.cur
         t.pos += 1
-        return Token(tokenType: TokenType.BinOp, literal: literal)
+        return ok(Token(tokenType: TokenType.BinOp, literal: literal))
 
-let tokenizer  = initTokenizer("10  + 200 / 4000 * 100 - 30")
+    if t.cur == '(':
+        let literal = $t.cur
+        t.pos += 1
+        return ok(Token(tokenType: TokenType.OpenParen, literal: literal))
+
+
+    if t.cur == ')':
+        let literal = $t.cur
+        t.pos += 1
+        return ok(Token(tokenType: TokenType.CloseParen, literal: literal))
+    else:
+        return err(t.pos)
+
+
+proc main() = 
+    let code = "3 +    4* (2 - 1)"
+    var tokenizer = initTokenizer(code)
+
+    while true:
+        let tokenResult = tokenizer.getOne()
+        if tokenResult.isOk:
+            echo "Token Type: ", tokenResult.value.tokenType
+            echo "Literal: ", tokenResult.value.literal
+            if tokenResult.value.tokenType == TokenType.Eof:
+                break
+        else:
+            echo "Error at position: ", tokenizer.pos
+
+main()

@@ -11,7 +11,7 @@ bin           = @["ncc"]
 # Dependencies
 
 requires "nim >= 2.0.8"
-
+requires "results"
 task makeTest, "execute test.sh":
   exec("./test.sh")
 

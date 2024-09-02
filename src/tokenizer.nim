@@ -1,6 +1,7 @@
 import results
 import strutils
-type TokenType {.pure.} = enum
+
+type TokenType*{.pure.} = enum
     BinOp
     Integer
     OpenParen
@@ -8,14 +9,16 @@ type TokenType {.pure.} = enum
     Eof
 
 
-type Token = ref object
-    tokenType: TokenType
-    literal: string
+type Token* = ref object
+    tokenType*: TokenType
+    literal*: string
 
+func newToken(tokenType: TokenType, literal: string): Token = 
+    result = Token(tokenType: tokenType, literal: literal)
 
-type Tokenizer = ref object
-    code: string
-    pos: int
+type Tokenizer* = ref object
+    code*: string
+    pos*: int
 
 func cur(t: Tokenizer):char = 
     if t.pos < t.code.len:
@@ -23,7 +26,7 @@ func cur(t: Tokenizer):char =
     else:
         return '\0'
 
-proc initTokenizer(code: string): Tokenizer = 
+proc initTokenizer*(code: string): Tokenizer = 
     result = Tokenizer(code:code, pos:0)
 
 func peek(t: Tokenizer): char = 
@@ -32,39 +35,59 @@ func peek(t: Tokenizer): char =
     else:
         return '\0'
 
-
-type TokenResult = Result[Token, int]
-
-proc getOne(t: Tokenizer): TokenResult = 
-
-    # WSは飛ばす。proc eatWS(t: Tokenizer)とかに分割したほうがいいかp
+proc readToken*(t: Tokenizer): Token = 
+    # Skip WS
     while t.cur == ' ':
         t.pos += 1
+    
+    var lit: string
 
-    if t.cur == '\0':
-        return ok(Token(tokenType: TokenType.Eof, literal: "\0"))
-    
     if t.cur.isDigit:
-        var literal: string
         while t.cur.isDigit:
-            literal.add t.cur
+            lit.add(t.cur)
             t.pos += 1
-        return ok(Token(tokenType: TokenType.Integer, literal: literal))
-    
+        return newToken(TokenType.Integer, lit)
+
     if "+-*/".contains t.cur:
-        let literal = $t.cur
+        lit = $t.cur
         t.pos += 1
-        return ok(Token(tokenType: TokenType.BinOp, literal: literal))
+        return newToken(TokenType.BinOp, lit)
 
     if t.cur == '(':
-        let literal = $t.cur
+        lit = $t.cur
         t.pos += 1
-        return ok(Token(tokenType: TokenType.OpenParen, literal: literal))
-
+        return newToken(TokenType.OpenParen, lit)
 
     if t.cur == ')':
-        let literal = $t.cur
+        lit = $t.cur
         t.pos += 1
-        return ok(Token(tokenType: TokenType.CloseParen, literal: literal))
+        return newToken(TokenType.CloseParen, lit)
+
+    if t.cur == '\0':
+        lit = $t.cur
+        t.pos += 1
+        return newToken(TokenType.Eof, lit)
+
+    echo "Tokenizer: error at position: ", t.pos
+    echo t.code
+    echo " ".repeat t.pos, "^"
+    quit 1
+
+proc peekToken*(t: Tokenizer): Token = 
+    let restore = t.pos
+    let token = t.readToken()
+    t.pos = restore
+    return token
+
+
+proc consume*(t: Tokenizer, expected_literal: string): (bool, Token) = 
+    let restore = t.pos
+
+    let token = t.readToken()
+
+    if token.literal != expected_literal:
+        t.pos = restore
+        return (false, nil)
+
     else:
-        return err(t.pos)
+        return (true, token)

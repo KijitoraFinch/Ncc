@@ -12,6 +12,7 @@ bin           = @["ncc"]
 
 requires "nim >= 2.0.8"
 requires "results"
+requires "print"
 task makeTest, "execute test.sh":
   exec("./test.sh")
 

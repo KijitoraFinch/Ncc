@@ -34,7 +34,7 @@ proc initParser*(tokenizer: Tokenizer): Parser =
 proc mul*(p: Parser): Node
 proc primary*(p: Parser): Node
 proc expr*(p: Parser): Node
-
+proc unary*(p: Parser): Node
 
 proc expr*(p: Parser): Node = 
     let t = p.tokenizer
@@ -43,20 +43,32 @@ proc expr*(p: Parser): Node =
         if(let res = t.consume("+"); res[0]):
             node = newNode(NodeKind.Add, node, p.mul())
         elif (let res = t.consume("-"); res[0]):
-            node = newNode(NodeKind.Sub, node, p.mul)
+            node = newNode(NodeKind.Sub, node, p.mul())
         else:
             return node
 
 proc mul*(p: Parser): Node = 
     let t = p.tokenizer
-    var node: Node = p.primary()
+    var node: Node = p.unary()
     while true:
         if(let res = t.consume("*"); res[0]):
-            node = newNode(NodeKind.Mul, node, p.primary)
+            node = newNode(NodeKind.Mul, node, p.unary())
         elif(let res = t.consume("/"); res[0]):
-            node = newNode(NodeKind.Div, node, p.primary)
+            node = newNode(NodeKind.Div, node, p.unary())
         else:
             return node
+
+
+proc unary*(p: Parser): Node = 
+    let t = p.tokenizer
+    if(let res = t.consume("+"); res[0]):
+        return p.primary()
+    elif(let res = t.consume("-"); res[0]):
+        return newNode(NodeKind.Sub, newNumNode(0), p.primary())
+    # どちらにもマッチしない→通常のprimary
+    else:
+        return p.primary()
+
 
 proc primary*(p: Parser): Node =
     let t = p.tokenizer

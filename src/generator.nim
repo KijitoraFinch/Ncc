@@ -29,7 +29,28 @@ proc gen*(ast: Node) =
     of NodeKind.Div:
         echo "  cqo"
         echo "  idiv rdi"
+
+    of NodeKind.Eq:
+        echo "  cmp rax, rdi"
+        echo "  sete al"
+        echo "  movzb rax, al"
     
+    of NodeKind.Ne: 
+        echo "  cmp rax, rdi"
+        echo "  setne al"
+        echo "  movzb rax, al"
+
+    of NodeKind.Le:
+        echo "  cmp rax, rdi"
+        echo "  setle al"
+        echo "  movzb rax, al"
+
+    of NodeKind.Lt:
+        echo "  cmp rax, rdi"
+        echo "  setl al"
+        echo "  movzb rax, al"
+
+
     else:
         echo "コード生成エラー： 右辺と左辺を持つノードにもかかわらず、演算ノードではありません"
         print ast

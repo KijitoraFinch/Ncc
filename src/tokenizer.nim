@@ -2,7 +2,7 @@ import results
 import strutils
 
 type TokenType*{.pure.} = enum
-    BinOp
+    Operator
     Integer
     OpenParen
     CloseParen
@@ -19,6 +19,7 @@ func newToken(tokenType: TokenType, literal: string): Token =
 type Tokenizer* = ref object
     code*: string
     pos*: int
+
 
 func cur(t: Tokenizer):char = 
     if t.pos < t.code.len:
@@ -51,7 +52,7 @@ proc readToken*(t: Tokenizer): Token =
     if "+-*/".contains t.cur:
         lit = $t.cur
         t.pos += 1
-        return newToken(TokenType.BinOp, lit)
+        return newToken(TokenType.Operator, lit)
 
     if t.cur == '(':
         lit = $t.cur
@@ -68,6 +69,39 @@ proc readToken*(t: Tokenizer): Token =
         t.pos += 1
         return newToken(TokenType.Eof, lit)
 
+    if t.cur == '!':
+        # !から始まる演算子は!=のみ
+        if peek(t) == '=':
+            lit = "!="
+            t.pos += 2
+            return newToken(TokenType.Operator, lit)
+
+    if t.cur == '=':
+        # =から始まる演算子は==のみ
+        if peek(t) == '=':
+            lit = "=="
+            t.pos += 2
+            return newToken(TokenType.Operator, lit)
+    if t.cur == '<':
+        if peek(t) == '=':
+            lit = "<="
+            t.pos += 2
+            return newToken(TokenType.Operator, lit)
+        else:
+            lit = "<"
+            t.pos += 1
+            return newToken(TokenType.Operator, lit)
+    
+    if t.cur == '>':
+        if peek(t) == '=':
+            lit = ">="
+            t.pos += 2
+            return newToken(TokenType.Operator, lit)
+        else:
+            lit = ">"
+            t.pos += 1
+            return newToken(TokenType.Operator, lit)
+    
     echo "Tokenizer: error at position: ", t.pos
     echo t.code
     echo " ".repeat t.pos, "^"
@@ -86,6 +120,7 @@ proc consume*(t: Tokenizer, expected_literal: string): (bool, Token) =
     let token = t.readToken()
 
     if token.literal != expected_literal:
+        # posを巻きもどす
         t.pos = restore
         return (false, nil)
 

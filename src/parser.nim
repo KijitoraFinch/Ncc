@@ -4,6 +4,7 @@ import strutils
 import options
 
 type NodeKind* {.pure.} = enum
+    Assign
     Add
     Sub
     Mul
@@ -12,6 +13,7 @@ type NodeKind* {.pure.} = enum
     Ne
     Lt
     Le
+    Ident
     Num
 
 type Node* = ref object
@@ -19,13 +21,17 @@ type Node* = ref object
     lhs*: Node
     rhs*: Node
     val*: int
+    offset*: int
 # Nimって再帰的型定義できるんか
 
 proc newNode(kind: NodeKind, lhs: Node, rhs: Node): Node = 
-    result = Node(kind: kind, lhs: lhs, rhs: rhs, val: 0)
+    result = Node(kind: kind, lhs: lhs, rhs: rhs)
 
 proc newNumNode(val: int): Node =   
-    result = Node(kind: NodeKind.Num, lhs: nil, rhs: nil, val: val)
+    result = Node(kind: NodeKind.Num, val: val)
+
+proc newLvarNode(offset: int): Node =
+    result = Node(kind:NodeKind.Ident, lhs:nil, rhs: nil, offset: offset)
 
 type Parser = ref object
     tokenizer: Tokenizer
@@ -35,7 +41,9 @@ proc initParser*(tokenizer: Tokenizer): Parser =
 
 
 # 前方宣言
+proc stmt*(p: Parser): Node # stmt = expr ";"
 proc expr*(p: Parser): Node
+proc assign*(p: Parser): Node
 proc equality*(p: Parser): Node
 proc relational*(p: Parser): Node
 proc add*(p: Parser): Node
@@ -43,10 +51,34 @@ proc mul*(p: Parser): Node
 proc unary*(p: Parser): Node
 proc primary*(p: Parser): Node
 
-proc expr*(p: Parser): Node = 
+proc program*(p:Parser): seq[Node] =
     let t = p.tokenizer
-    var node: Node = p.equality()
-    return node
+    var program = newSeq[Node]()
+    while not t.consume($'\0')[0]:
+        program.add(p.stmt())
+    return program
+    
+        
+
+proc stmt*(p: Parser): Node = 
+    result = p.expr()
+    if not(let res = p.tokenizer.consume(";"); res[0]):
+        echo "Expected ';', but got=", res[1].literal
+        echo p.tokenizer.code
+        echo " ".repeat p.tokenizer.pos, "^"
+        quit 1
+
+proc expr*(p: Parser): Node = 
+    return p.assign()
+
+proc assign*(p: Parser): Node = 
+    let t = p.tokenizer
+    var node = p.equality
+    while true:
+        if(let res = t.consume("="); res[0]):
+            node = newNode(NodeKind.Assign, node, p.assign())
+        else:
+            return node
 
 proc equality*(p: Parser): Node = 
     let t = p.tokenizer
@@ -84,6 +116,7 @@ proc add*(p: Parser): Node =
             node = newNode(NodeKind.Sub, node, p.mul())
         else:
             return node
+
 
 proc mul*(p: Parser): Node = 
     let t = p.tokenizer
@@ -127,6 +160,11 @@ proc primary*(p: Parser): Node =
         let token = t.readToken()
         if token.tokenType == TokenType.Integer:
             return newNumNode(parseInt(token.literal))
+        
+        elif token.tokenType == TokenType.Ident:
+            
+            return newLvarNode((token.literal[0].int()-'a'.int()+1 )*8)
+
         else:
             echo "Unexpected token: expect=Integer, got=", token.tokenType
             echo t.code

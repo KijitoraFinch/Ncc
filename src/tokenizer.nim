@@ -7,7 +7,7 @@ type TokenType*{.pure.} = enum
     OpenParen
     CloseParen
     Eof
-
+    Ident
 
 type Token* = ref object
     tokenType*: TokenType
@@ -102,6 +102,12 @@ proc readToken*(t: Tokenizer): Token =
             t.pos += 1
             return newToken(TokenType.Operator, lit)
     
+    elif t.cur.isAlphaAscii:
+        while t.cur.isAlphaNumeric:
+            lit.add(t.cur)
+            t.pos += 1
+        return newToken(TokenTypeIdentr, lit)
+
     echo "Tokenizer: error at position: ", t.pos
     echo t.code
     echo " ".repeat t.pos, "^"

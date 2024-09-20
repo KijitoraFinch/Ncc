@@ -3,3 +3,5 @@ nimblecache/
 htmldocs/
 .vscode/
 ncc
+*tmp*
+*.s

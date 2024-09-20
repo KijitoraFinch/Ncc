@@ -8,14 +8,18 @@ type TokenType*{.pure.} = enum
     OpenParen
     CloseParen
     Semicolon
+    Return
     Eof
+
 
 type Token* = ref object
     tokenType*: TokenType
     literal*: string
 
+
 func newToken(tokenType: TokenType, literal: string): Token = 
     result = Token(tokenType: tokenType, literal: literal)
+
 
 type Tokenizer* = ref object
     code*: string
@@ -28,14 +32,17 @@ func cur(t: Tokenizer):char =
     else:
         return '\0'
 
+
 proc initTokenizer*(code: string): Tokenizer = 
     result = Tokenizer(code:code, pos:0)
+
 
 func peek(t: Tokenizer): char = 
     if t.pos+1 < t.code.len:
         return t.code[t.pos+1]
     else:
         return '\0'
+
 
 proc readToken*(t: Tokenizer): Token = 
     # Skip WS
@@ -112,7 +119,12 @@ proc readToken*(t: Tokenizer): Token =
         while t.cur.isAlphaNumeric:
             lit.add(t.cur)
             t.pos += 1
-        return newToken(TokenType.Ident, lit)
+
+        case lit
+        of "return":
+            return newToken(TokenType.Return, lit)
+        else:
+            return newToken(TokenType.Ident, lit)
 
     if t.cur == ';':
         lit = $t.cur

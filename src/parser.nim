@@ -14,7 +14,9 @@ type NodeKind* {.pure.} = enum
     Lt
     Le
     Ident
+    Return
     Num
+
 
 type Node* = ref object
     kind*: NodeKind
@@ -27,15 +29,19 @@ type Node* = ref object
 proc newNode(kind: NodeKind, lhs: Node, rhs: Node): Node = 
     result = Node(kind: kind, lhs: lhs, rhs: rhs)
 
+
 proc newNumNode(val: int): Node =   
     result = Node(kind: NodeKind.Num, val: val)
+
 
 proc newLvarNode(offset: int): Node =
     result = Node(kind:NodeKind.Ident, lhs:nil, rhs: nil, offset: offset)
 
+
 type Parser* = ref object
     tokenizer: Tokenizer
     locals*: Ident
+
 
 proc initParser*(tokenizer: Tokenizer): Parser = 
     result = Parser(tokenizer: tokenizer, locals: newIdent(0, "", nil))
@@ -47,8 +53,10 @@ type Ident = ref object
     name* : string
     next*: Ident # ident | nil
 
+
 proc newIdent(offset: int, name: string, next: Ident): Ident = 
     result = Ident(offset: offset, name: name, next: next)
+
 
 proc findIdent(ident: Ident, name: string): Ident = 
     var cur = ident
@@ -56,6 +64,7 @@ proc findIdent(ident: Ident, name: string): Ident =
         if cur.name == name:
             return cur
         cur = cur.next
+
 
 # 前方宣言
 proc stmt*(p: Parser): Node # stmt = expr ";"
@@ -68,6 +77,7 @@ proc mul*(p: Parser): Node
 proc unary*(p: Parser): Node
 proc primary*(p: Parser): Node
 
+
 proc program*(p:Parser): seq[Node] =
     let t = p.tokenizer
     var program = newSeq[Node]()
@@ -77,11 +87,17 @@ proc program*(p:Parser): seq[Node] =
 
 
 proc stmt*(p: Parser): Node = 
+    if p.tokenizer.consume("return")[0]:
+        let node = p.expr()
+        discard p.tokenizer.consume(";")
+        return newNode(NodeKind.Return, node, nil)
     result = p.expr()
     discard p.tokenizer.consume(";")
 
+
 proc expr*(p: Parser): Node = 
     return p.assign()
+
 
 proc assign*(p: Parser): Node = 
     let t = p.tokenizer
@@ -91,6 +107,7 @@ proc assign*(p: Parser): Node =
             node = newNode(NodeKind.Assign, node, p.assign())
         else:
             return node
+
 
 proc equality*(p: Parser): Node = 
     let t = p.tokenizer
@@ -102,6 +119,7 @@ proc equality*(p: Parser): Node =
             node = newNode(NodeKind.Ne, node, p.relational())
         else:
             return node
+
 
 proc relational*(p: Parser): Node =
     let t = p.tokenizer
@@ -117,6 +135,7 @@ proc relational*(p: Parser): Node =
             node = newNode(NodeKind.Le, p.add(), node)
         else:
             return node
+
 
 proc add*(p: Parser): Node =
     let t = p.tokenizer
@@ -168,19 +187,19 @@ proc primary*(p: Parser): Node =
         
         return node
 
+    let token = t.readToken()
+    if token.tokenType == TokenType.Integer:
+        return newNumNode(parseInt(token.literal))
+    
+    elif token.tokenType == TokenType.Ident:
+        let ident = findIdent(p.locals, token.literal)
+        if ident == nil:
+            p.locals = newIdent(p.locals.offset+8, token.literal, p.locals)
+            return newLvarNode(p.locals.offset)
+        return newLvarNode(ident.offset)
+
     else:
-        let token = t.readToken()
-        if token.tokenType == TokenType.Integer:
-            return newNumNode(parseInt(token.literal))
-        
-        elif token.tokenType == TokenType.Ident:
-            let ident = findIdent(p.locals, token.literal)
-            if ident == nil:
-                p.locals = newIdent(p.locals.offset+8, token.literal, p.locals)
-                return newLvarNode(p.locals.offset)
-            return newLvarNode(ident.offset)
-        else:
-            echo "Unexpected token: expect=Integer, got=", token.tokenType
-            echo t.code
-            echo " ".repeat t.pos, "^"
-            quit 1
+        echo "Unexpected token: expect=Integer, got=", token.tokenType
+        echo t.code
+        echo " ".repeat t.pos, "^"
+        quit 1

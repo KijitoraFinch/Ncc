@@ -49,4 +49,9 @@ assert 1 '1>=1'
 assert 0 '1>=2'
 assert 1 '33>4'
 assert 0 '1+1>2'
+assert 3 'a = 1; b = 2; a + b'
+assert 3 'foo=3;  foo;'
+assert 3 'foo=3; bar=foo; bar;'
+assert 3 'foo=3; bar=foo; baz=bar; baz;'
+
 echo OK

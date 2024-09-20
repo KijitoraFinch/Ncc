@@ -21,6 +21,7 @@ proc main() =
 
     var tokenizer = initTokenizer(code)
 
+
     while true:
         let token = readToken(tokenizer)
         if token.tokenType == TokenType.Eof:
@@ -28,14 +29,20 @@ proc main() =
         stderr.writeLine token.literal
     tokenizer.pos = 0
     let parser = initParser(tokenizer)
-    let node = expr(parser)
+    let nodes = parser.program()
 
     echo asm_boilerplate
+    # プロローグ
+    echo "  push rbp"
+    echo "  mov rbp, rsp"
+    echo "  sub rsp, $1" % $parser.locals.offset
 
-    node.gen()
-    
-    echo "  pop rax"
+    for node in nodes:
+        node.gen()
+        echo "  pop rax"
+
+    echo "  mov rsp, rbp"
+    echo "  pop rbp"
     echo "  ret"
-    # スタックの一番上をpopしてretする
 
 main()

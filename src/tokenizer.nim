@@ -4,10 +4,11 @@ import strutils
 type TokenType*{.pure.} = enum
     Operator
     Integer
+    Ident
     OpenParen
     CloseParen
+    Semicolon
     Eof
-    Ident
 
 type Token* = ref object
     tokenType*: TokenType
@@ -77,11 +78,16 @@ proc readToken*(t: Tokenizer): Token =
             return newToken(TokenType.Operator, lit)
 
     if t.cur == '=':
-        # =から始まる演算子は==のみ
+        # =から始まる演算子は==と代入演算子
         if peek(t) == '=':
             lit = "=="
             t.pos += 2
             return newToken(TokenType.Operator, lit)
+        else:
+            lit = "="
+            t.pos += 1
+            return newToken(TokenType.Operator, lit)
+
     if t.cur == '<':
         if peek(t) == '=':
             lit = "<="
@@ -102,16 +108,22 @@ proc readToken*(t: Tokenizer): Token =
             t.pos += 1
             return newToken(TokenType.Operator, lit)
     
-    elif t.cur.isAlphaAscii:
+    if t.cur.isAlphaAscii:
         while t.cur.isAlphaNumeric:
             lit.add(t.cur)
             t.pos += 1
-        return newToken(TokenTypeIdentr, lit)
+        return newToken(TokenType.Ident, lit)
+
+    if t.cur == ';':
+        lit = $t.cur
+        t.pos += 1
+        return newToken(TokenType.Semicolon, lit)
 
     echo "Tokenizer: error at position: ", t.pos
     echo t.code
     echo " ".repeat t.pos, "^"
     quit 1
+
 
 proc peekToken*(t: Tokenizer): Token = 
     let restore = t.pos

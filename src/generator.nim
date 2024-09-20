@@ -2,12 +2,31 @@ import parser
 import print
 import strutils
 
-proc gen*(ast: Node) = 
+
+{.experimental: "codeReordering".}
+proc gen*(ast: Node) =
     # genした結果のアセンブリは、計算結果をスタックに積むという制約
 
     if ast.kind == NodeKind.Num:
         echo("  push $1" % $ast.val)
-        return;
+        return
+
+    if ast.kind == NodeKind.Ident:
+        ast.genLval()
+        echo "  pop rax"
+        # raxの指しているアドレスをraxに入れる
+        echo "  mov rax, [rax]"
+        echo "  push rax"
+        return
+    
+    if ast.kind == NodeKind.Assign:
+        ast.lhs.genLval()
+        ast.rhs.gen()
+        echo "  pop rdi"
+        echo "  pop rax"
+        echo "  mov [rax], rdi"
+        echo "  push rdi"
+        return
 
     ast.lhs.gen()
     ast.rhs.gen()
@@ -52,8 +71,22 @@ proc gen*(ast: Node) =
 
 
     else:
-        echo "コード生成エラー： 右辺と左辺を持つノードにもかかわらず、演算ノードではありません"
+        echo "Codegen error: argument is not a operator nevertheless it has lhs and rhs"
         print ast
         quit 1
 
     echo "  push rax"
+
+
+proc genLval(node: Node) = 
+    if node.kind != NodeKind.Ident:
+        echo "Codegen error: not a lvalue"
+        print node
+        quit 1
+    # ベースレジスタ(rbp)の値をraxにもってきて、左辺の変数のアドレスを計算してスタックにpushする
+    echo "  mov rax, rbp"
+    echo "  sub rax, $1" % $node.offset
+    echo "  push rax"
+
+    
+    
